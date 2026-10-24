@@ -197,6 +197,7 @@
     <button class="tool-btn" id="exportBtn">导出数据</button>
     <button class="tool-btn" id="mockBtn">填充示例数据</button>
     <button class="tool-btn" id="resetBtn">重置今日</button>
+    <button class="tool-btn" id="clearAllBtn">清空全部数据</button>
   </div>
 
   <div class="hint">空格 = 开始 / 切换专注·摸鱼 &nbsp;·&nbsp; Esc = 暂停 / 继续</div>
@@ -595,6 +596,17 @@ document.getElementById('resetBtn').addEventListener('click', () => {
   state.days[dayKey()] = { focus: 0, slack: 0, sessions: [] };
   save(); updateUI();
   toast('今日已重置');
+});
+
+// 清空全部历史数据
+document.getElementById('clearAllBtn').addEventListener('click', () => {
+  if (!confirm('确定清空全部历史数据吗？\n此操作不可恢复，建议先「导出数据」备份。')) return;
+  pause();
+  mockMode = false;
+  mockBackup = null;
+  state.days = {};
+  save(); updateUI();
+  toast('已清空全部数据');
 });
 
 // 进入示例数据预览：只改内存，不写盘，刷新或任何真实操作即恢复
