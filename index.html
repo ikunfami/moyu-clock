@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>摸鱼时钟</title>
+<link rel="icon" href="data:,">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: linear-gradient(135deg, #0f0f1e 0%, #1a1a3e 100%);
+    color: #eee;
+    font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    padding: 20px 16px 16px;
+    transition: background 0.6s;
+  }
+  body.mode-focus { background: linear-gradient(135deg, #0c1f19 0%, #14352a 100%); }
+  body.mode-slack { background: linear-gradient(135deg, #20100c 0%, #3a1d14 100%); }
+
+  header { text-align: center; margin-bottom: 12px; }
+  header h1 { font-size: 18px; font-weight: 600; color: #999; letter-spacing: 6px; }
+  header .date { font-size: 12px; color: #555; margin-top: 4px; }
+
+  .timer {
+    font-size: 60px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 3px;
+    transition: color 0.3s, text-shadow 0.3s;
+  }
+  .timer.idle   { color: #667; text-shadow: none; }
+  .timer.focus  { color: #2ee6a8; text-shadow: 0 0 40px rgba(46, 230, 168, 0.45); }
+  .timer.slack  { color: #ff7a59; text-shadow: 0 0 40px rgba(255, 122, 89, 0.45); }
+
+  .mode-label { font-size: 13px; color: #777; margin: 6px 0 14px; letter-spacing: 2px; }
+
+  .btn-row { display: flex; gap: 12px; margin-bottom: 20px; }
+  .btn {
+    padding: 12px 44px;
+    font-size: 18px;
+    border: none;
+    border-radius: 50px;
+    cursor: pointer;
+    transition: all 0.25s;
+    font-weight: 700;
+    letter-spacing: 2px;
+    font-family: inherit;
+  }
+  .btn.focus { background: #00b894; color: #fff; box-shadow: 0 8px 25px rgba(0, 184, 148, 0.35); }
+  .btn.slack { background: #e17055; color: #fff; box-shadow: 0 8px 25px rgba(225, 112, 85, 0.35); }
+  .btn.idle  { background: #2c2c4a; color: #aaa; }
+  .btn:hover { transform: translateY(-2px); }
+  .btn:active { transform: scale(0.97); }
+  .btn-ghost {
+    padding: 15px 24px; font-size: 14px; border-radius: 50px; cursor: pointer;
+    background: transparent; color: #888; border: 1px solid #3a3a5c;
+    transition: all 0.2s; font-family: inherit;
+  }
+  .btn-ghost:hover { color: #ccc; border-color: #555; }
+
+  .stats { display: flex; gap: 48px; margin-bottom: 22px; }
+  .stat-item { text-align: center; }
+  .stat-value { font-size: 26px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .stat-label { font-size: 12px; color: #888; margin-top: 6px; letter-spacing: 2px; }
+
+  .cards {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    gap: 14px;
+    width: 100%;
+    align-items: stretch;
+    margin-bottom: 16px;
+  }
+  .cards .card:nth-child(2) { flex: 1.5; }
+  .card {
+    flex: 1 1 0;
+    min-width: 0;
+    background: rgba(20, 26, 48, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 14px;
+    padding: 14px 16px;
+    backdrop-filter: blur(8px);
+    display: flex;
+    flex-direction: column;
+  }
+  .card h3 { font-size: 13px; color: #888; letter-spacing: 2px; margin-bottom: 12px; font-weight: 600; flex-shrink: 0; }
+  .card .grow { flex: 1; min-height: 0; }
+  #chart { width: 100%; height: 100%; }
+  #timeline { overflow-y: auto; scrollbar-width: thin; scrollbar-color: #333355 transparent; }
+  #timeline::-webkit-scrollbar { width: 6px; }
+  #timeline::-webkit-scrollbar-thumb { background: #333355; border-radius: 3px; }
+  #timeline::-webkit-scrollbar-track { background: transparent; }
+  #historyList { width: 100%; height: 100%; }
+
+  .tl-item {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 5px 0; border-bottom: 1px solid #22223e; font-size: 12px;
+  }
+  .tl-item:last-child { border-bottom: none; }
+  .tl-time { color: #888; font-variant-numeric: tabular-nums; }
+  .tl-mode { font-weight: 600; }
+  .tl-mode.focus { color: #2ee6a8; }
+  .tl-mode.slack { color: #ff7a59; }
+  .tl-dur { color: #aaa; font-variant-numeric: tabular-nums; }
+  .tl-empty { color: #555; font-size: 13px; text-align: center; padding: 8px 0; }
+
+  .tools { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 16px; }
+  .tool-btn {
+    padding: 8px 18px; font-size: 13px;
+    background: rgba(255, 255, 255, 0.06); color: #bbb;
+    border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 20px;
+    cursor: pointer; transition: all 0.2s; font-family: inherit;
+  }
+  .tool-btn:hover { background: rgba(255, 255, 255, 0.14); color: #fff; }
+
+  .hint { margin-top: 14px; font-size: 12px; color: #4a4a66; }
+  .toast {
+    position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: #2c2c4a; color: #eee; padding: 10px 22px; border-radius: 24px;
+    font-size: 13px; opacity: 0; pointer-events: none; transition: all 0.3s;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+  <header>
+    <h1>摸 鱼 时 钟</h1>
+    <div class="date" id="todayDate"></div>
+  </header>
+
+  <div class="timer idle" id="timer">00:00:00</div>
+  <div class="mode-label" id="modeLabel">还没开始，点下面按钮</div>
+
+  <div class="btn-row">
+    <button class="btn idle" id="mainBtn">开始专注</button>
+    <button class="btn-ghost" id="pauseBtn" style="display:none">暂停</button>
+  </div>
+
+  <div class="stats">
+    <div class="stat-item">
+      <div class="stat-value" style="color:#2ee6a8" id="todayFocus">0m</div>
+      <div class="stat-label">今日专注</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-value" style="color:#ff7a59" id="todaySlack">0m</div>
+      <div class="stat-label">今日摸鱼</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-value" id="slackRate" style="color:#ccc">--</div>
+      <div class="stat-label">摸鱼率</div>
+    </div>
+  </div>
+
+  <div class="cards">
+    <div class="card">
+      <h3>最近 7 天</h3>
+      <div id="historyList" class="grow"></div>
+    </div>
+    <div class="card">
+      <h3>今日曲线</h3>
+      <div id="chart" class="grow"></div>
+    </div>
+    <div class="card">
+      <h3>今日时间线</h3>
+      <div id="timeline" class="grow"></div>
+    </div>
+  </div>
+
+  <div class="tools">
+    <button class="tool-btn" id="notifyBtn">开启提醒</button>
+    <button class="tool-btn" id="reportBtn">复制今日战绩</button>
+    <button class="tool-btn" id="weekBtn">复制本周战报</button>
+    <button class="tool-btn" id="exportBtn">导出数据</button>
+    <button class="tool-btn" id="mockBtn">填充示例数据</button>
+    <button class="tool-btn" id="resetBtn">重置今日</button>
+  </div>
+
+  <div class="hint">空格 = 开始 / 切换专注·摸鱼 &nbsp;·&nbsp; Esc = 暂停 / 继续</div>
+  <div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<script>
+const STORAGE_KEY = 'moyu-clock-v1';
+
+// state = { days: { 'YYYY-MM-DD': { focus, slack, sessions: [{mode,start,end}] } }, running: {mode,start}|null }
+let state = { days: {}, running: null };
+let lastNotify = { focus: 0, slack: 0 };
+
+/* ---------- 基础工具 ---------- */
+function dayKey(d = new Date()) {
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function ensureDay(key) {
+  if (!state.days[key]) state.days[key] = { focus: 0, slack: 0, sessions: [] };
+  return state.days[key];
+}
+function today() { return ensureDay(dayKey()); }
+function fmtHMS(sec) {
+  const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
+  const p = n => String(n).padStart(2, '0');
+  return `${p(h)}:${p(m)}:${p(s)}`;
+}
+function fmtShort(sec) {
+  if (sec < 60) return sec + 's';
+  if (sec < 3600) return Math.floor(sec / 60) + 'm';
+  return (sec / 3600).toFixed(1) + 'h';
+}
+function fmtHM(ts) {
+  const d = new Date(ts);
+  return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+}
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('show'), 1800);
+}
+function copyText(text, okMsg) {
+  navigator.clipboard.writeText(text)
+    .then(() => toast(okMsg))
+    .catch(() => toast('复制失败，请手动复制：' + text));
+}
+
+/* ---------- 持久化 ---------- */
+function save() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+  catch (e) { console.warn('保存失败', e); }
+}
+function load() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const data = JSON.parse(raw);
+      if (data && typeof data === 'object' && data.days) state = { days: data.days, running: data.running || null };
+    }
+  } catch (e) { state = { days: {}, running: null }; }
+  // 如果上次是运行中状态被关闭，把已流逝的时间结算掉
+  if (state.running) settleRunning();
+  // 合并历史遗留的碎片 session（旧版本每秒一条）
+  for (const key of Object.keys(state.days)) sanitizeDay(state.days[key]);
+}
+function sanitizeDay(day) {
+  const out = [];
+  for (const s of day.sessions || []) {
+    const prev = out[out.length - 1];
+    if (prev && prev.mode === s.mode && s.start - prev.end <= 1500) {
+      prev.end = Math.max(prev.end, s.end);
+    } else {
+      out.push({ mode: s.mode, start: s.start, end: s.end });
+    }
+  }
+  day.sessions = out;
+}
+
+// 把时间戳方案下流逝的时间结算进对应日期（天然支持跨天）
+function settleRunning() {
+  const now = Date.now();
+  const run = state.running;
+  if (!run || now - run.start < 1000) return;
+  // 跨天：在午夜处断开 session，新的一天开一条新 session
+  if (dayKey(new Date(run.start)) !== dayKey(new Date(now))) {
+    const eod = new Date(run.start);
+    eod.setHours(23, 59, 59, 999);
+    accumulate(eod.getTime());
+    run.start = eod.getTime() + 1;
+    const t = run.start;
+    ensureDay(dayKey()).sessions.push({ mode: run.mode, start: t, end: t });
+  }
+  accumulate(now);
+  run.start = now;
+}
+
+// 把 run.start 到 until 之间的整秒数记入对应日期，并更新当天未关闭的 session
+function accumulate(until) {
+  const run = state.running;
+  const sec = Math.floor((until - run.start) / 1000);
+  if (sec <= 0) return;
+  const day = ensureDay(dayKey(new Date(until)));
+  day[run.mode] += sec;
+  const sess = day.sessions[day.sessions.length - 1];
+  if (sess && sess.mode === run.mode) sess.end = until;
+}
+
+/* ---------- 核心操作 ---------- */
+function start(mode) {
+  state.lastMode = mode;
+  const t = Date.now();
+  state.running = { mode, start: t };
+  today().sessions.push({ mode, start: t, end: t });
+  save(); updateUI();
+}
+function pause() {
+  if (!state.running) return;
+  settleRunning();
+  state.running = null;
+  save(); updateUI();
+}
+function resume() {
+  if (state.running || !state.lastMode) return;
+  start(state.lastMode);
+}
+function switchMode() {
+  if (!state.running) return;
+  state.lastMode = state.running.mode === 'focus' ? 'slack' : 'focus';
+  start(state.lastMode);
+}
+
+/* ---------- 每秒心跳 ---------- */
+setInterval(() => {
+  if (state.running) { settleRunning(); save(); }
+  updateUI();
+  checkNotify();
+}, 1000);
+
+/* ---------- 通知 ---------- */
+function checkNotify() {
+  if (!('Notification' in window) || Notification.permission !== 'granted' || !state.running) return;
+  const day = today();
+  const f2h = Math.floor(day.focus / 7200);
+  if (state.running.mode === 'focus' && f2h > lastNotify.focus && day.focus > 0) {
+    new Notification('摸鱼时钟', { body: `已专注 ${fmtShort(day.focus)}，起来走走吧` });
+  }
+  lastNotify.focus = f2h;
+  const s30 = Math.floor(day.slack / 1800);
+  if (state.running.mode === 'slack' && s30 > lastNotify.slack && day.slack > 0) {
+    new Notification('摸鱼时钟', { body: `摸了 ${fmtShort(day.slack)} 了，该回来干活了` });
+  }
+  lastNotify.slack = s30;
+}
+document.getElementById('notifyBtn').addEventListener('click', async () => {
+  if (!('Notification' in window)) { toast('这个浏览器不支持通知'); return; }
+  const p = await Notification.requestPermission();
+  updateNotifyBtn();
+  toast(p === 'granted' ? '提醒已开启' : '通知权限被拒绝');
+});
+function updateNotifyBtn() {
+  const btn = document.getElementById('notifyBtn');
+  if (!('Notification' in window)) { btn.textContent = '通知不可用'; return; }
+  btn.textContent = Notification.permission === 'granted' ? '提醒已开启' : '开启提醒';
+}
+
+/* ---------- UI 渲染 ---------- */
+function updateUI() {
+  const day = today();
+  const running = state.running;
+  const isFocus = running ? running.mode === 'focus' : (state.lastMode !== 'slack');
+
+  const timer = document.getElementById('timer');
+  const mainBtn = document.getElementById('mainBtn');
+  const pauseBtn = document.getElementById('pauseBtn');
+  const label = document.getElementById('modeLabel');
+
+  if (running) {
+    timer.textContent = fmtHMS(running.mode === 'focus' ? day.focus : day.slack);
+    timer.className = 'timer ' + running.mode;
+    label.textContent = running.mode === 'focus' ? '专注中… 按空格去摸鱼' : '摸鱼中… 按空格回来干活';
+    mainBtn.textContent = running.mode === 'focus' ? '摸鱼一下' : '回来干活';
+    mainBtn.className = 'btn ' + (running.mode === 'focus' ? 'slack' : 'focus');
+    pauseBtn.style.display = '';
+    pauseBtn.textContent = '暂停';
+  } else {
+    const shown = (state.lastMode === 'slack') ? day.slack : day.focus;
+    timer.textContent = fmtHMS(shown);
+    timer.className = 'timer idle';
+    label.textContent = day.focus + day.slack > 0 ? '已暂停，按 Esc 或点按钮继续' : '还没开始，点下面按钮';
+    mainBtn.textContent = (state.lastMode === 'slack') ? '开始摸鱼' : '开始专注';
+    mainBtn.className = 'btn ' + (isFocus ? 'focus' : 'slack');
+    pauseBtn.style.display = 'none';
+  }
+
+  document.body.className = running ? 'mode-' + running.mode : '';
+
+  const total = day.focus + day.slack;
+  document.getElementById('todayFocus').textContent = fmtShort(day.focus);
+  document.getElementById('todaySlack').textContent = fmtShort(day.slack);
+  document.getElementById('slackRate').textContent = total > 0 ? Math.round(day.slack / total * 100) + '%' : '--';
+
+  renderHistory();
+  renderTimeline();
+  updateChart();
+}
+
+function renderHistory() {
+  if (!chartHist) return;
+  const days = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate() - i);
+    const key = dayKey(d);
+    const it = state.days[key] || { focus: 0, slack: 0 };
+    days.push({ label: (d.getMonth() + 1) + '/' + d.getDate(), focus: it.focus, slack: it.slack });
+  }
+  chartHist.setOption({
+    grid: { left: 48, right: 12, top: 32, bottom: 24 },
+    tooltip: {
+      trigger: 'axis',
+      backgroundColor: '#2c2c4a',
+      borderWidth: 0,
+      textStyle: { color: '#eee', fontSize: 12 },
+      formatter: ps => {
+        const f = ps[0].value, s = ps[1].value;
+        const total = f + s;
+        const rate = total > 0 ? Math.round(s / total * 100) : 0;
+        return `${ps[0].name}<br>专注 ${fmtShort(f)}<br>摸鱼 ${fmtShort(s)}<br>摸鱼率 ${rate}%`;
+      }
+    },
+    legend: { data: ['专注', '摸鱼'], textStyle: { color: '#999' }, top: 2, icon: 'roundRect' },
+    xAxis: {
+      type: 'category',
+      data: days.map(d => d.label),
+      axisLabel: { color: '#777' },
+      axisLine: { lineStyle: { color: '#333355' } }
+    },
+    yAxis: {
+      type: 'value',
+      axisLabel: { color: '#777', formatter: v => fmtShort(v) },
+      splitLine: { lineStyle: { color: '#22223e' } }
+    },
+    series: [
+      {
+        name: '专注', type: 'bar', stack: 'total', barWidth: 22,
+        data: days.map(d => d.focus),
+        itemStyle: { color: '#00b894', borderRadius: [3, 3, 0, 0] }
+      },
+      {
+        name: '摸鱼', type: 'bar', stack: 'total',
+        data: days.map(d => d.slack),
+        itemStyle: { color: '#e17055', borderRadius: [3, 3, 0, 0] }
+      }
+    ]
+  });
+}
+
+function renderTimeline() {
+  const box = document.getElementById('timeline');
+  const sessions = today().sessions.slice().reverse().slice(0, 18);
+  if (!sessions.length) {
+    box.innerHTML = '<div class="tl-empty">今天还没有记录</div>';
+    return;
+  }
+  box.innerHTML = sessions.map(s => {
+    const dur = Math.max(1, Math.round((s.end - s.start) / 1000));
+    const name = s.mode === 'focus' ? '专注' : '摸鱼';
+    return `<div class="tl-item">
+      <span class="tl-time">${fmtHM(s.start)} – ${fmtHM(s.end)}</span>
+      <span class="tl-mode ${s.mode}">${name}</span>
+      <span class="tl-dur">${fmtShort(dur)}</span>
+    </div>`;
+  }).join('');
+}
+
+/* ---------- ECharts 今日曲线 ---------- */
+let chart = null;
+let chartHist = null;
+function initChart() {
+  if (!window.echarts) {
+    document.getElementById('chart').innerHTML = '<div class="tl-empty">图表加载失败：需要联网加载 ECharts</div>';
+    return;
+  }
+  chart = echarts.init(document.getElementById('chart'));
+  chartHist = echarts.init(document.getElementById('historyList'));
+  window.addEventListener('resize', () => {
+    if (chart) chart.resize();
+    if (chartHist) chartHist.resize();
+  });
+}
+function cumulativeSeries(mode) {
+  const segs = today().sessions
+    .filter(s => s.mode === mode)
+    .sort((a, b) => a.start - b.start);
+  const data = [];
+  let cum = 0;
+  for (const s of segs) {
+    if (!data.length) data.push([s.start, 0]);
+    cum += Math.max(1, Math.round((s.end - s.start) / 1000));
+    data.push([s.end, cum]);
+  }
+  return data;
+}
+function updateChart() {
+  if (!chart) return;
+  const dayStart = new Date(); dayStart.setHours(8, 0, 0, 0);
+  const dayEnd = new Date(); dayEnd.setHours(18, 0, 0, 0);
+  // 基准 8:00–18:00；当天数据超出 18 点时，x 轴自动向右延长
+  let maxT = dayEnd.getTime();
+  for (const s of today().sessions) if (s.end > maxT) maxT = s.end;
+  if (state.running) maxT = Math.max(maxT, Date.now());
+  chart.setOption({
+    grid: { left: 52, right: 20, top: 40, bottom: 30 },
+    tooltip: {
+      trigger: 'axis',
+      backgroundColor: '#2c2c4a',
+      borderWidth: 0,
+      textStyle: { color: '#eee', fontSize: 12 },
+      formatter: ps => {
+        const t = new Date(ps[0].value[0]);
+        const hm = String(t.getHours()).padStart(2, '0') + ':' + String(t.getMinutes()).padStart(2, '0');
+        return hm + '<br>' + ps.map(p => `${p.marker}${p.seriesName} ${fmtShort(p.value[1])}`).join('<br>');
+      }
+    },
+    legend: { data: ['专注', '摸鱼'], textStyle: { color: '#999' }, top: 4, icon: 'roundRect' },
+    xAxis: {
+      type: 'time', min: dayStart.getTime(), max: maxT,
+      axisLabel: { color: '#777', formatter: '{HH}:{mm}' },
+      axisLine: { lineStyle: { color: '#333355' } }
+    },
+    yAxis: {
+      type: 'value',
+      axisLabel: { color: '#777', formatter: v => fmtShort(v) },
+      splitLine: { lineStyle: { color: '#22223e' } }
+    },
+    series: [
+      {
+        name: '专注', type: 'line', smooth: true, showSymbol: false,
+        data: cumulativeSeries('focus'),
+        lineStyle: { color: '#2ee6a8', width: 2.5 },
+        itemStyle: { color: '#2ee6a8' },
+        areaStyle: { color: 'rgba(46,230,168,0.10)' }
+      },
+      {
+        name: '摸鱼', type: 'line', smooth: true, showSymbol: false,
+        data: cumulativeSeries('slack'),
+        lineStyle: { color: '#ff7a59', width: 2.5 },
+        itemStyle: { color: '#ff7a59' },
+        areaStyle: { color: 'rgba(255,122,89,0.10)' }
+      }
+    ]
+  });
+}
+
+/* ---------- 工具按钮 ---------- */
+document.getElementById('reportBtn').addEventListener('click', () => {
+  const day = today();
+  const total = day.focus + day.slack;
+  const rate = total > 0 ? Math.round(day.slack / total * 100) : 0;
+  copyText(`今日摸鱼战绩：专注 ${fmtShort(day.focus)}，摸鱼 ${fmtShort(day.slack)}，摸鱼率 ${rate}%。`, '战绩已复制，快去群里炫耀吧');
+});
+
+document.getElementById('weekBtn').addEventListener('click', () => {
+  let f = 0, s = 0;
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(); d.setDate(d.getDate() - i);
+    const it = state.days[dayKey(d)];
+    if (it) { f += it.focus; s += it.slack; }
+  }
+  const total = f + s;
+  const rate = total > 0 ? Math.round(s / total * 100) : 0;
+  copyText(`本周摸鱼战报：专注 ${fmtShort(f)}，摸鱼 ${fmtShort(s)}，摸鱼率 ${rate}%。`, '战报已复制');
+});
+
+document.getElementById('exportBtn').addEventListener('click', () => {
+  const blob = new Blob([JSON.stringify(state.days, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'moyu-data-' + dayKey() + '.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+
+document.getElementById('resetBtn').addEventListener('click', () => {
+  if (!confirm('确定清空今天的全部记录吗？')) return;
+  pause();
+  state.days[dayKey()] = { focus: 0, slack: 0, sessions: [] };
+  save(); updateUI();
+  toast('今日已重置');
+});
+
+// 用模拟数据替换最近 7 天记录，方便预览图表效果
+document.getElementById('mockBtn').addEventListener('click', () => {
+  if (!confirm('将用模拟数据替换最近 7 天的记录，方便预览图表效果。确定？')) return;
+  pause();
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate() - i);
+    state.days[dayKey(d)] = genMockDay(d);
+  }
+  save(); updateUI();
+  toast('已填充 7 天示例数据');
+});
+
+// 生成某一天的 8:00–18:00 模拟记录
+function genMockDay(date) {
+  const rnd = (a, b) => a + Math.random() * (b - a);
+  const at = (h, m) => { const d = new Date(date); d.setHours(h, m, 0, 0); return d.getTime(); };
+  const sessions = [];
+  let focus = 0, slack = 0;
+  const lunchS = at(12, 0), lunchE = at(13, 0);
+  const limit = at(18, 0);
+  let t = at(8, 0);
+  let isFocus = true;
+  while (t < limit) {
+    let end = Math.min(t + (isFocus ? rnd(30, 70) : rnd(5, 25)) * 60000, limit);
+    if (t < lunchE && end > lunchS) { t = lunchE; isFocus = true; continue; } // 午休不计
+    const mode = isFocus ? 'focus' : 'slack';
+    sessions.push({ mode, start: Math.round(t), end: Math.round(end) });
+    if (isFocus) focus += Math.round((end - t) / 1000);
+    else slack += Math.round((end - t) / 1000);
+    t = end;
+    isFocus = !isFocus;
+  }
+  return { focus, slack, sessions };
+}
+
+/* ---------- 主按钮 / 键盘 ---------- */
+document.getElementById('mainBtn').addEventListener('click', () => {
+  if (state.running) switchMode();
+  else start(state.lastMode === 'slack' ? 'slack' : 'focus');
+});
+document.getElementById('pauseBtn').addEventListener('click', pause);
+
+document.addEventListener('keydown', e => {
+  if (e.repeat) return;
+  if (e.code === 'Space') {
+    e.preventDefault();
+    if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
+    if (state.running) switchMode();
+    else start(state.lastMode === 'slack' ? 'slack' : 'focus');
+  }
+  if (e.code === 'Escape') {
+    if (state.running) pause();
+    else resume();
+  }
+});
+
+window.addEventListener('beforeunload', () => { if (state.running) settleRunning(); save(); });
+
+/* ---------- 初始化 ---------- */
+document.getElementById('todayDate').textContent =
+  new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
+load();
+updateNotifyBtn();
+initChart();
+updateUI();
+</script>
+</body>
+</html>
