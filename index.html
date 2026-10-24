@@ -122,6 +122,17 @@
   .tool-btn:hover { background: rgba(255, 255, 255, 0.14); color: #fff; }
 
   .hint { margin-top: 14px; font-size: 12px; color: #4a4a66; }
+
+  .mock-banner {
+    display: flex; align-items: center; justify-content: center; gap: 14px;
+    width: 100%; padding: 8px 14px; margin-bottom: 12px;
+    background: rgba(225, 112, 85, 0.15); border: 1px solid rgba(225, 112, 85, 0.4);
+    border-radius: 10px; color: #ffb59e; font-size: 13px;
+  }
+  .mock-banner button {
+    padding: 3px 14px; font-size: 12px; border-radius: 12px; cursor: pointer;
+    background: #e17055; color: #fff; border: none; font-family: inherit;
+  }
   .toast {
     position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(20px);
     background: #2c2c4a; color: #eee; padding: 10px 22px; border-radius: 24px;
@@ -159,6 +170,11 @@
     </div>
   </div>
 
+  <div id="mockBanner" class="mock-banner" style="display:none">
+    <span>示例数据预览中 · 不保存、不影响真实数据，刷新页面自动恢复</span>
+    <button id="exitMockBtn">退出预览</button>
+  </div>
+
   <div class="cards">
     <div class="card">
       <h3>最近 7 天</h3>
@@ -193,6 +209,8 @@ const STORAGE_KEY = 'moyu-clock-v1';
 // state = { days: { 'YYYY-MM-DD': { focus, slack, sessions: [{mode,start,end}] } }, running: {mode,start}|null }
 let state = { days: {}, running: null };
 let lastNotify = { focus: 0, slack: 0 };
+let mockMode = false;
+let mockBackup = null;
 
 /* ---------- 基础工具 ---------- */
 function dayKey(d = new Date()) {
@@ -232,6 +250,7 @@ function copyText(text, okMsg) {
 
 /* ---------- 持久化 ---------- */
 function save() {
+  if (mockMode) return; // 示例数据预览不写盘
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
   catch (e) { console.warn('保存失败', e); }
 }
@@ -292,6 +311,7 @@ function accumulate(until) {
 
 /* ---------- 核心操作 ---------- */
 function start(mode) {
+  if (mockMode) exitMock();
   state.lastMode = mode;
   const t = Date.now();
   state.running = { mode, start: t };
@@ -323,6 +343,7 @@ setInterval(() => {
 
 /* ---------- 通知 ---------- */
 function checkNotify() {
+  if (mockMode) return;
   if (!('Notification' in window) || Notification.permission !== 'granted' || !state.running) return;
   const day = today();
   const f2h = Math.floor(day.focus / 7200);
@@ -387,6 +408,7 @@ function updateUI() {
   renderHistory();
   renderTimeline();
   updateChart();
+  updateMockBanner();
 }
 
 function renderHistory() {
@@ -557,6 +579,7 @@ document.getElementById('weekBtn').addEventListener('click', () => {
 });
 
 document.getElementById('exportBtn').addEventListener('click', () => {
+  if (mockMode) exitMock();
   const blob = new Blob([JSON.stringify(state.days, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -567,23 +590,45 @@ document.getElementById('exportBtn').addEventListener('click', () => {
 
 document.getElementById('resetBtn').addEventListener('click', () => {
   if (!confirm('确定清空今天的全部记录吗？')) return;
+  if (mockMode) exitMock();
   pause();
   state.days[dayKey()] = { focus: 0, slack: 0, sessions: [] };
   save(); updateUI();
   toast('今日已重置');
 });
 
-// 用模拟数据替换最近 7 天记录，方便预览图表效果
+// 进入示例数据预览：只改内存，不写盘，刷新或任何真实操作即恢复
 document.getElementById('mockBtn').addEventListener('click', () => {
-  if (!confirm('将用模拟数据替换最近 7 天的记录，方便预览图表效果。确定？')) return;
+  if (!mockMode && !confirm('进入示例数据预览？\n预览只显示在页面上，不影响真实数据，刷新页面即恢复。')) return;
   pause();
+  if (!mockMode) {
+    mockBackup = JSON.parse(JSON.stringify(state.days));
+    mockMode = true;
+  }
   for (let i = 6; i >= 0; i--) {
     const d = new Date(); d.setDate(d.getDate() - i);
     state.days[dayKey(d)] = genMockDay(d);
   }
-  save(); updateUI();
-  toast('已填充 7 天示例数据');
+  updateUI();
+  toast('已进入示例数据预览');
 });
+
+document.getElementById('exitMockBtn').addEventListener('click', () => {
+  exitMock();
+  toast('已恢复真实数据');
+});
+
+function exitMock() {
+  if (!mockMode) return;
+  state.days = mockBackup || {};
+  mockBackup = null;
+  mockMode = false;
+  save(); updateUI();
+}
+
+function updateMockBanner() {
+  document.getElementById('mockBanner').style.display = mockMode ? '' : 'none';
+}
 
 // 生成某一天的 8:00–18:00 模拟记录
 function genMockDay(date) {
