@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>摸鱼时钟</title>
+<title>MOYU·时钟</title>
 <link rel="icon" href="data:,">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/element-plus@2.7.8/dist/index.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/element-plus@2.7.8/theme-chalk/dark/css-vars.css">
@@ -151,7 +151,7 @@
 </head>
 <body>
   <header>
-    <h1>摸 鱼 时 钟</h1>
+    <h1>MOYU·时钟</h1>
     <div class="date" id="todayDate"></div>
   </header>
 
@@ -170,11 +170,11 @@
     </div>
     <div class="stat-item">
       <div class="stat-value" style="color:#ff7a59" id="todaySlack">0m</div>
-      <div class="stat-label">今日摸鱼</div>
+      <div class="stat-label">今日moyu</div>
     </div>
     <div class="stat-item">
       <div class="stat-value" id="slackRate" style="color:#ccc">--</div>
-      <div class="stat-label">摸鱼率</div>
+      <div class="stat-label">moyu率</div>
     </div>
   </div>
 
@@ -212,7 +212,7 @@
   <div class="hint">
     <span id="worktimeHint" class="wt-hint"></span>
     <span id="worktimeHintSep" style="display:none">｜</span>
-    <span>空格 = 开始 / 切换专注·摸鱼 &nbsp;·&nbsp; Esc = 暂停 / 继续</span>
+    <span>空格 = 开始 / 切换专注·moyu &nbsp;·&nbsp; Esc = 暂停 / 继续</span>
   </div>
   <div class="toast" id="toast"></div>
 
@@ -391,12 +391,12 @@ function checkNotify() {
   const day = today();
   const f2h = Math.floor(day.focus / 7200);
   if (state.running.mode === 'focus' && f2h > lastNotify.focus && day.focus > 0) {
-    new Notification('摸鱼时钟', { body: `已专注 ${fmtShort(day.focus)}，起来走走吧` });
+    new Notification('MOYU·时钟', { body: `已专注 ${fmtShort(day.focus)}，起来走走吧` });
   }
   lastNotify.focus = f2h;
   const s30 = Math.floor(day.slack / 1800);
   if (state.running.mode === 'slack' && s30 > lastNotify.slack && day.slack > 0) {
-    new Notification('摸鱼时钟', { body: `摸了 ${fmtShort(day.slack)} 了，该回来干活了` });
+    new Notification('MOYU·时钟', { body: `已 moyu ${fmtShort(day.slack)}，该回来干活了` });
   }
   lastNotify.slack = s30;
 }
@@ -426,8 +426,8 @@ function updateUI() {
   if (running) {
     timer.textContent = fmtHMS(running.mode === 'focus' ? day.focus : day.slack);
     timer.className = 'timer ' + running.mode;
-    label.textContent = running.mode === 'focus' ? '专注中… 按空格去摸鱼' : '摸鱼中… 按空格回来干活';
-    mainBtn.textContent = running.mode === 'focus' ? '摸鱼一下' : '回来干活';
+    label.textContent = running.mode === 'focus' ? '专注中… 按空格去moyu' : 'moyu中… 按空格回来干活';
+    mainBtn.textContent = running.mode === 'focus' ? 'moyu一下' : '回来干活';
     mainBtn.className = 'btn ' + (running.mode === 'focus' ? 'slack' : 'focus');
     pauseBtn.style.display = '';
     pauseBtn.textContent = '暂停';
@@ -436,7 +436,7 @@ function updateUI() {
     timer.textContent = fmtHMS(shown);
     timer.className = 'timer idle';
     label.textContent = day.focus + day.slack > 0 ? '已暂停，按 Esc 或点按钮继续' : '还没开始，点下面按钮';
-    mainBtn.textContent = (state.lastMode === 'slack') ? '开始摸鱼' : '开始专注';
+    mainBtn.textContent = (state.lastMode === 'slack') ? '开始moyu' : '开始专注';
     mainBtn.className = 'btn ' + (isFocus ? 'focus' : 'slack');
     pauseBtn.style.display = 'none';
   }
@@ -475,10 +475,10 @@ function renderHistory() {
         const f = ps[0].value, s = ps[1].value;
         const total = f + s;
         const rate = total > 0 ? Math.round(s / total * 100) : 0;
-        return `${ps[0].name}<br>专注 ${fmtShort(f)}<br>摸鱼 ${fmtShort(s)}<br>摸鱼率 ${rate}%`;
+        return `${ps[0].name}<br>专注 ${fmtShort(f)}<br>moyu ${fmtShort(s)}<br>moyu率 ${rate}%`;
       }
     },
-    legend: { data: ['专注', '摸鱼'], textStyle: { color: '#999' }, top: 2, icon: 'roundRect' },
+    legend: { data: ['专注', 'moyu'], textStyle: { color: '#999' }, top: 2, icon: 'roundRect' },
     xAxis: {
       type: 'category',
       data: days.map(d => d.label),
@@ -497,7 +497,7 @@ function renderHistory() {
         itemStyle: { color: '#00b894', borderRadius: [3, 3, 0, 0] }
       },
       {
-        name: '摸鱼', type: 'bar', stack: 'total',
+        name: 'moyu', type: 'bar', stack: 'total',
         data: days.map(d => d.slack),
         itemStyle: { color: '#e17055', borderRadius: [3, 3, 0, 0] }
       }
@@ -514,7 +514,7 @@ function renderTimeline() {
   }
   box.innerHTML = sessions.map(s => {
     const dur = Math.max(1, Math.round((s.end - s.start) / 1000));
-    const name = s.mode === 'focus' ? '专注' : '摸鱼';
+    const name = s.mode === 'focus' ? '专注' : 'moyu';
     return `<div class="tl-item">
       <span class="tl-time">${fmtHM(s.start)} – ${fmtHM(s.end)}</span>
       <span class="tl-mode ${s.mode}">${name}</span>
@@ -646,7 +646,7 @@ function updateChart() {
         return hm + '<br>' + ps.map(p => `${p.marker}${p.seriesName} ${fmtShort(p.value[1])}`).join('<br>');
       }
     },
-    legend: { data: ['专注', '摸鱼'], textStyle: { color: '#999' }, top: 4, icon: 'roundRect' },
+    legend: { data: ['专注', 'moyu'], textStyle: { color: '#999' }, top: 4, icon: 'roundRect' },
     xAxis: {
       type: 'time', min: dayStart, max: maxT,
       axisLabel: { color: '#777', formatter: '{HH}:{mm}' },
@@ -671,7 +671,7 @@ function updateChart() {
         }
       },
       {
-        name: '摸鱼', type: 'line', smooth: true, showSymbol: false,
+        name: 'moyu', type: 'line', smooth: true, showSymbol: false,
         data: cumulativeSeries('slack'),
         lineStyle: { color: '#ff7a59', width: 2.5 },
         itemStyle: { color: '#ff7a59' },
@@ -686,7 +686,7 @@ document.getElementById('reportBtn').addEventListener('click', () => {
   const day = today();
   const total = day.focus + day.slack;
   const rate = total > 0 ? Math.round(day.slack / total * 100) : 0;
-  copyText(`今日摸鱼战绩：专注 ${fmtShort(day.focus)}，摸鱼 ${fmtShort(day.slack)}，摸鱼率 ${rate}%。`, '战绩已复制，快去群里炫耀吧');
+  copyText(`今日moyu战绩：专注 ${fmtShort(day.focus)}，moyu ${fmtShort(day.slack)}，moyu率 ${rate}%。`, '战绩已复制，快去群里炫耀吧');
 });
 
 document.getElementById('weekBtn').addEventListener('click', () => {
@@ -698,7 +698,7 @@ document.getElementById('weekBtn').addEventListener('click', () => {
   }
   const total = f + s;
   const rate = total > 0 ? Math.round(s / total * 100) : 0;
-  copyText(`本周摸鱼战报：专注 ${fmtShort(f)}，摸鱼 ${fmtShort(s)}，摸鱼率 ${rate}%。`, '战报已复制');
+  copyText(`本周moyu战报：专注 ${fmtShort(f)}，moyu ${fmtShort(s)}，moyu率 ${rate}%。`, '战报已复制');
 });
 
 document.getElementById('exportBtn').addEventListener('click', () => {
