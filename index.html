@@ -1,10 +1,12 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" class="dark">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>摸鱼时钟</title>
 <link rel="icon" href="data:,">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/element-plus@2.7.8/dist/index.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/element-plus@2.7.8/theme-chalk/dark/css-vars.css">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -133,6 +135,10 @@
     padding: 3px 14px; font-size: 12px; border-radius: 12px; cursor: pointer;
     background: #e17055; color: #fff; border: none; font-family: inherit;
   }
+
+  .wt-row { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+  .wt-name { width: 36px; font-size: 14px; color: #ccc; flex-shrink: 0; }
+  .wt-tip { font-size: 12px; color: #888; line-height: 1.6; }
   .toast {
     position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(20px);
     background: #2c2c4a; color: #eee; padding: 10px 22px; border-radius: 24px;
@@ -197,12 +203,42 @@
     <button class="tool-btn" id="exportBtn">导出数据</button>
     <button class="tool-btn" id="mockBtn">填充示例数据</button>
     <button class="tool-btn" id="resetBtn">重置今日</button>
+    <button class="tool-btn" id="worktimeBtn">工作时间</button>
     <button class="tool-btn" id="clearAllBtn">清空全部数据</button>
   </div>
 
   <div class="hint">空格 = 开始 / 切换专注·摸鱼 &nbsp;·&nbsp; Esc = 暂停 / 继续</div>
   <div class="toast" id="toast"></div>
 
+  <!-- 工作时间设置（Element Plus 弹窗挂载点） -->
+  <div id="worktime-app">
+    <el-dialog v-model="visible" title="工作时间设置" width="460px" :close-on-click-modal="false">
+      <div class="wt-row" v-for="(p, key) in form" :key="key">
+        <span class="wt-name">{{ names[key] }}</span>
+        <el-time-picker
+          v-model="p.range"
+          is-range
+          format="HH:mm"
+          value-format="HH:mm"
+          range-separator="至"
+          start-placeholder="开始时间"
+          end-placeholder="结束时间"
+          :disabled="!p.enabled"
+          style="flex:1">
+        </el-time-picker>
+        <el-switch v-model="p.enabled"></el-switch>
+      </div>
+      <div class="wt-tip">开启的时段决定「今日曲线」的横轴范围，时段之间的间隙（如午休）会在图上显示为暗色区域。</div>
+      <template #footer>
+        <el-button @click="visible = false">取消</el-button>
+        <el-button type="primary" @click="save">保存</el-button>
+      </template>
+    </el-dialog>
+  </div>
+
+<script src="https://cdn.jsdelivr.net/npm/vue@3.4.31/dist/vue.global.prod.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/element-plus@2.7.8/dist/index.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/element-plus@2.7.8/dist/locale/zh-cn.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
 <script>
 const STORAGE_KEY = 'moyu-clock-v1';
@@ -480,6 +516,67 @@ function renderTimeline() {
   }).join('');
 }
 
+/* ---------- 工作时间设置 ---------- */
+const WT_KEY = 'moyu-worktime-v1';
+const WT_DEFAULT = {
+  morning:   { enabled: true,  range: ['08:00', '12:00'] },
+  afternoon: { enabled: true,  range: ['13:00', '18:00'] },
+  night:     { enabled: false, range: ['19:00', '22:00'] },
+};
+let worktime = loadWorktime();
+
+function loadWorktime() {
+  try {
+    const raw = localStorage.getItem(WT_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) { return null; }
+}
+// 返回启用时段的 [startMin, endMin] 列表（按开始时间排序），无有效时段返回 null
+function workRanges() {
+  const wt = worktime || WT_DEFAULT;
+  const toMin = s => { const [h, m] = s.split(':').map(Number); return h * 60 + m; };
+  const arr = Object.values(wt)
+    .filter(p => p.enabled && Array.isArray(p.range) && p.range[0] && p.range[1])
+    .map(p => [toMin(p.range[0]), toMin(p.range[1])])
+    .sort((a, b) => a[0] - b[0]);
+  return arr.length ? arr : null;
+}
+// Element Plus 弹窗
+function initWorktimeUI() {
+  if (!window.Vue || !window.ElementPlus) return;
+  const { createApp, reactive, ref } = Vue;
+  const names = { morning: '上午', afternoon: '下午', night: '夜晚' };
+  const app = createApp({
+    setup() {
+      const visible = ref(false);
+      const form = reactive(JSON.parse(JSON.stringify(worktime || WT_DEFAULT)));
+      function open() {
+        Object.assign(form, JSON.parse(JSON.stringify(worktime || WT_DEFAULT)));
+        visible.value = true;
+      }
+      function save() {
+        for (const k of Object.keys(form)) {
+          if (form[k].enabled && (!Array.isArray(form[k].range) || !form[k].range[0] || !form[k].range[1])) {
+            ElementPlus.ElMessage.warning(`请补全「${names[k]}」的时间范围，或关闭该时段`);
+            return;
+          }
+        }
+        worktime = JSON.parse(JSON.stringify(form));
+        try { localStorage.setItem(WT_KEY, JSON.stringify(worktime)); }
+        catch (e) { console.warn('保存失败', e); }
+        visible.value = false;
+        updateChart();
+        ElementPlus.ElMessage.success('已保存');
+      }
+      window.__openWorktime = open;
+      return { visible, form, names, save };
+    },
+  });
+  app.use(ElementPlus, { locale: ElementPlusLocaleZhCn });
+  app.mount('#worktime-app');
+  document.getElementById('worktimeBtn').addEventListener('click', () => window.__openWorktime && window.__openWorktime());
+}
+
 /* ---------- ECharts 今日曲线 ---------- */
 let chart = null;
 let chartHist = null;
@@ -510,12 +607,24 @@ function cumulativeSeries(mode) {
 }
 function updateChart() {
   if (!chart) return;
-  const dayStart = new Date(); dayStart.setHours(8, 0, 0, 0);
-  const dayEnd = new Date(); dayEnd.setHours(18, 0, 0, 0);
-  // 基准 8:00–18:00；当天数据超出 18 点时，x 轴自动向右延长
-  let maxT = dayEnd.getTime();
+  const ranges = workRanges();
+  const baseStart = ranges ? ranges[0][0] : 8 * 60;
+  const baseEnd = ranges ? ranges[ranges.length - 1][1] : 18 * 60;
+  const atMin = min => { const d = new Date(); d.setHours(0, min, 0, 0); return d.getTime(); };
+  const dayStart = atMin(baseStart);
+  let maxT = atMin(baseEnd);
+  // 数据超出最后时段末尾时，x 轴自动向右延长
   for (const s of today().sessions) if (s.end > maxT) maxT = s.end;
   if (state.running) maxT = Math.max(maxT, Date.now());
+  // 时段之间的休息间隙（如图 12:00–13:00 午休）
+  const gaps = [];
+  if (ranges) {
+    let cursor = ranges[0][1];
+    for (let i = 1; i < ranges.length; i++) {
+      if (ranges[i][0] > cursor) gaps.push([cursor, ranges[i][0]]);
+      cursor = Math.max(cursor, ranges[i][1]);
+    }
+  }
   chart.setOption({
     grid: { left: 52, right: 20, top: 40, bottom: 30 },
     tooltip: {
@@ -531,7 +640,7 @@ function updateChart() {
     },
     legend: { data: ['专注', '摸鱼'], textStyle: { color: '#999' }, top: 4, icon: 'roundRect' },
     xAxis: {
-      type: 'time', min: dayStart.getTime(), max: maxT,
+      type: 'time', min: dayStart, max: maxT,
       axisLabel: { color: '#777', formatter: '{HH}:{mm}' },
       axisLine: { lineStyle: { color: '#333355' } }
     },
@@ -546,7 +655,12 @@ function updateChart() {
         data: cumulativeSeries('focus'),
         lineStyle: { color: '#2ee6a8', width: 2.5 },
         itemStyle: { color: '#2ee6a8' },
-        areaStyle: { color: 'rgba(46,230,168,0.10)' }
+        areaStyle: { color: 'rgba(46,230,168,0.10)' },
+        markArea: {
+          silent: true,
+          itemStyle: { color: 'rgba(255,255,255,0.04)' },
+          data: gaps.map(([gs, ge]) => [{ xAxis: atMin(gs) }, { xAxis: atMin(ge) }])
+        }
       },
       {
         name: '摸鱼', type: 'line', smooth: true, showSymbol: false,
@@ -694,7 +808,12 @@ document.getElementById('todayDate').textContent =
 load();
 updateNotifyBtn();
 initChart();
+initWorktimeUI();
 updateUI();
+// 本地没有工作时间设置时，自动弹出设置窗口
+if (!localStorage.getItem(WT_KEY)) {
+  setTimeout(() => window.__openWorktime && window.__openWorktime(), 400);
+}
 </script>
 </body>
 </html>
