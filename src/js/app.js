@@ -576,7 +576,7 @@ window.addEventListener('beforeunload', () => { if (state.running) settleRunning
 
 /* ---------- 单独计时 ---------- */
 const solo = { running: false, startTs: 0, elapsed: 0, timerId: null };
-const soloPanel = document.getElementById('soloPanel');
+const soloOverlay = document.getElementById('soloOverlay');
 function soloNow() { return solo.elapsed + (solo.running ? Date.now() - solo.startTs : 0); }
 function soloRender() {
   document.getElementById('soloTime').textContent = fmtHMS(Math.floor(soloNow() / 1000));
@@ -600,13 +600,17 @@ function soloPause() {
   soloRender(); soloSyncBtns();
 }
 document.getElementById('soloBtn').addEventListener('click', () => {
-  soloPanel.style.display = soloPanel.style.display === 'block' ? 'none' : 'block';
+  soloOverlay.classList.toggle('open');
   soloRender();
 });
 document.getElementById('soloStartBtn').addEventListener('click', soloStart);
 document.getElementById('soloPauseBtn').addEventListener('click', soloPause);
 document.getElementById('soloCloseBtn').addEventListener('click', () => {
-  soloPanel.style.display = 'none';
+  soloOverlay.classList.remove('open');
+});
+// 点击模态遮罩层关闭
+soloOverlay.addEventListener('click', e => {
+  if (e.target === soloOverlay) soloOverlay.classList.remove('open');
 });
 
 /* ---------- 初始化 ---------- */

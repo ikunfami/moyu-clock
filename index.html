@@ -77,14 +77,16 @@
   </div>
   <div class="toast" id="toast"></div>
 
-  <!-- 单独计时浮动面板 -->
-  <div id="soloPanel" class="solo-panel">
-    <div class="solo-title">单独计时</div>
-    <div class="solo-time" id="soloTime">00:00:00</div>
-    <div class="solo-btns">
-      <button class="solo-btn" id="soloStartBtn">开始</button>
-      <button class="solo-btn" id="soloPauseBtn" disabled>暂停</button>
-      <button class="solo-btn ghost" id="soloCloseBtn">关闭</button>
+  <!-- 单独计时（居中模态弹窗） -->
+  <div id="soloOverlay" class="solo-overlay">
+    <div id="soloPanel" class="solo-panel">
+      <div class="solo-title">单独计时</div>
+      <div class="solo-time" id="soloTime">00:00:00</div>
+      <div class="solo-btns">
+        <button class="solo-btn" id="soloStartBtn">开始</button>
+        <button class="solo-btn" id="soloPauseBtn" disabled>暂停</button>
+        <button class="solo-btn ghost" id="soloCloseBtn">关闭</button>
+      </div>
     </div>
   </div>
 

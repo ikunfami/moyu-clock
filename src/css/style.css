@@ -139,13 +139,19 @@
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
 /* ---------- 单独计时面板 ---------- */
-.solo-panel {
+.solo-overlay {
   display: none;
-  position: fixed; right: 24px; top: 100px; z-index: 90;
-  width: 220px; padding: 16px;
-  background: rgba(20, 26, 48, 0.95);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 14px; backdrop-filter: blur(10px);
+  position: fixed; inset: 0; z-index: 90;
+  background: rgba(0, 0, 0, 0.55);
+  align-items: center; justify-content: center;
+}
+.solo-overlay.open { display: flex; }
+.solo-panel {
+  width: 260px; padding: 22px 20px 20px;
+  background: rgba(20, 26, 48, 0.97);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px; backdrop-filter: blur(10px);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
 }
 .solo-title { font-size: 13px; color: #888; letter-spacing: 2px; text-align: center; margin-bottom: 10px; }
 .solo-time {
