@@ -123,7 +123,9 @@
   }
   .tool-btn:hover { background: rgba(255, 255, 255, 0.14); color: #fff; }
 
-  .hint { margin-top: 14px; font-size: 12px; color: #4a4a66; }
+  .hint { margin-top: 14px; font-size: 12px; color: #4a4a66; display: flex; align-items: center; justify-content: center; gap: 10px; }
+  .wt-hint { color: #777; cursor: pointer; }
+  .wt-hint:hover { color: #bbb; }
 
   .mock-banner {
     display: flex; align-items: center; justify-content: center; gap: 14px;
@@ -207,7 +209,11 @@
     <button class="tool-btn" id="clearAllBtn">清空全部数据</button>
   </div>
 
-  <div class="hint">空格 = 开始 / 切换专注·摸鱼 &nbsp;·&nbsp; Esc = 暂停 / 继续</div>
+  <div class="hint">
+    <span id="worktimeHint" class="wt-hint"></span>
+    <span id="worktimeHintSep" style="display:none">｜</span>
+    <span>空格 = 开始 / 切换专注·摸鱼 &nbsp;·&nbsp; Esc = 暂停 / 继续</span>
+  </div>
   <div class="toast" id="toast"></div>
 
   <!-- 工作时间设置（Element Plus 弹窗挂载点） -->
@@ -446,6 +452,7 @@ function updateUI() {
   renderTimeline();
   updateChart();
   updateMockBanner();
+  renderWorktimeHint();
 }
 
 function renderHistory() {
@@ -575,6 +582,7 @@ function initWorktimeUI() {
   app.use(ElementPlus, { locale: ElementPlusLocaleZhCn });
   app.mount('#worktime-app');
   document.getElementById('worktimeBtn').addEventListener('click', () => window.__openWorktime && window.__openWorktime());
+  document.getElementById('worktimeHint').addEventListener('click', () => window.__openWorktime && window.__openWorktime());
 }
 
 /* ---------- ECharts 今日曲线 ---------- */
@@ -754,6 +762,19 @@ function exitMock() {
 
 function updateMockBanner() {
   document.getElementById('mockBanner').style.display = mockMode ? '' : 'none';
+}
+
+// 底部提示行显示工作时间，点击可打开设置
+function renderWorktimeHint() {
+  const el = document.getElementById('worktimeHint');
+  const sep = document.getElementById('worktimeHintSep');
+  const wt = worktime || WT_DEFAULT;
+  const names = { morning: '上午', afternoon: '下午', night: '夜晚' };
+  const parts = Object.keys(wt)
+    .filter(k => wt[k].enabled && Array.isArray(wt[k].range) && wt[k].range[0] && wt[k].range[1])
+    .map(k => `${names[k]} ${wt[k].range[0]}–${wt[k].range[1]}`);
+  el.textContent = parts.length ? '⏰ 工作时间 ' + parts.join(' · ') : '';
+  sep.style.display = parts.length ? '' : 'none';
 }
 
 // 生成某一天的 8:00–18:00 模拟记录
