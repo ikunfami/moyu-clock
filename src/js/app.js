@@ -574,6 +574,41 @@ document.addEventListener('keydown', e => {
 
 window.addEventListener('beforeunload', () => { if (state.running) settleRunning(); save(); });
 
+/* ---------- 单独计时 ---------- */
+const solo = { running: false, startTs: 0, elapsed: 0, timerId: null };
+const soloPanel = document.getElementById('soloPanel');
+function soloNow() { return solo.elapsed + (solo.running ? Date.now() - solo.startTs : 0); }
+function soloRender() {
+  document.getElementById('soloTime').textContent = fmtHMS(Math.floor(soloNow() / 1000));
+}
+function soloSyncBtns() {
+  document.getElementById('soloStartBtn').disabled = solo.running;
+  document.getElementById('soloPauseBtn').disabled = !solo.running;
+}
+function soloStart() {
+  if (solo.running) return;
+  solo.running = true;
+  solo.startTs = Date.now();
+  solo.timerId = setInterval(soloRender, 250);
+  soloRender(); soloSyncBtns();
+}
+function soloPause() {
+  if (!solo.running) return;
+  solo.elapsed += Date.now() - solo.startTs;
+  solo.running = false;
+  clearInterval(solo.timerId);
+  soloRender(); soloSyncBtns();
+}
+document.getElementById('soloBtn').addEventListener('click', () => {
+  soloPanel.style.display = soloPanel.style.display === 'block' ? 'none' : 'block';
+  soloRender();
+});
+document.getElementById('soloStartBtn').addEventListener('click', soloStart);
+document.getElementById('soloPauseBtn').addEventListener('click', soloPause);
+document.getElementById('soloCloseBtn').addEventListener('click', () => {
+  soloPanel.style.display = 'none';
+});
+
 /* ---------- 初始化 ---------- */
 document.getElementById('todayDate').textContent =
   new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
