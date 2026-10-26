@@ -599,18 +599,29 @@ function soloPause() {
   clearInterval(solo.timerId);
   soloRender(); soloSyncBtns();
 }
+function soloReset() {
+  if (solo.running) {
+    solo.running = false;
+    clearInterval(solo.timerId);
+  }
+  solo.elapsed = 0;
+  solo.startTs = 0;
+  soloRender(); soloSyncBtns();
+}
+function soloClose() {
+  soloReset();
+  soloOverlay.classList.remove('open');
+}
 document.getElementById('soloBtn').addEventListener('click', () => {
   soloOverlay.classList.toggle('open');
   soloRender();
 });
 document.getElementById('soloStartBtn').addEventListener('click', soloStart);
 document.getElementById('soloPauseBtn').addEventListener('click', soloPause);
-document.getElementById('soloCloseBtn').addEventListener('click', () => {
-  soloOverlay.classList.remove('open');
-});
-// 点击模态遮罩层关闭
+document.getElementById('soloCloseBtn').addEventListener('click', soloClose);
+// 点击模态遮罩层关闭（同样清空）
 soloOverlay.addEventListener('click', e => {
-  if (e.target === soloOverlay) soloOverlay.classList.remove('open');
+  if (e.target === soloOverlay) soloClose();
 });
 
 /* ---------- 初始化 ---------- */
